@@ -1,0 +1,707 @@
+openapi: 3.2.0
+info:
+  version: '00.02.01'
+  title: SemaLogic Service API
+  description: |-
+    The SemaLogic API can be reached using a default network port of 28000. This
+    network can be altered at starttime using parameter "-p port#".
+    The default port is also described in servers-url.
+    
+    Version history:
+     - 00.02.01 Added NLP parameter to most text input calls to reflect the ability for interpreting natural language parsing;
+     - 00.02.00 Added Canvas2SL API call to reflect interactive graphical editing;
+     - 00.01.20 Added simple empty API call without arguments as alias on APIVersion;
+     - 00.01.19 Added array as type for attribute values;
+     - 00.01.18 Added KnowledgeGraph output;
+     - 00.01.17 Added SemanticTree output;
+                Added ASCII Text input;
+                Introduced check and advice terms;
+                Use online SemaLogic service for OpenAPI testing.
+     - 00.01.16 Added dialect/show;
+                declare session id (sid) as consistent component parameter and refer to
+     - 00.01.15 Added session handling with session id (sid) in requests;
+                Defined dialect define and delete new;
+                Added TextID as reference for rule/delete;
+                Added delete session.
+     - 00.01.14 Added errorlist for return of soft warnings and errors, changed rulesout;
+                format to add rulesettype and errors.
+     - 00.01.13 Renaming of MGROUP type to GROUP; harmonized "Rulesset" to "Ruleset"; added Bool.
+     - 00.01.12 Correction of MGROUP type -> array.
+     - 00.01.11 Minor changes in ASP-JSON and cascading of API-schema.
+     - 00.01.10 Implementation of ASP-JSON-Structure.
+     - 00.01.00 InitVersion of SemaLogic API.
+  contact:
+    email: info@semalogic.de
+  license:
+    name: Patent Licensing
+    url: https://semalogic.de/Lizenzierung
+servers:
+  - url: https://service.semalogic.ddns.net
+  - url: https://semalogic-stage.cavas.uni-potsdam.de
+  - url: http://localhost:28000
+externalDocs:
+  description: Find out more about SemaLogic
+  url: http://semalogic.de
+paths:
+  /:
+    get:
+      summary: Generate a simple reply, used in testing to see if the services is running
+      description: Answers currently with the same JSON output as GetAPIVersion
+      operationId: GetSimpleResponse
+      responses:
+        '200':
+          description: Successfully return
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/version'
+  /APIVersion:
+    get:
+      summary: Show the current API-Version
+      description: Number of the interface-version
+      operationId: GetAPIVersion
+      responses:
+        '200':
+          description: Successfully return
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/version'
+  /StopServer:
+    delete:
+      summary: Stop the running server.
+      description: Stop the running server.
+      operationId: DeleteStopServer
+      responses:
+        '200':
+          description: Successfully return.
+        default:
+          $ref: '#/components/responses/ErrorDefault'
+  /session:
+    delete:
+      summary: Remove all data related to the session given by the sid parameter.
+      description: Stop the current session and removes all internal data. In comparison to reset, this function also removes all dialects, which were defined in this session.
+      operationId: DeleteSession
+      parameters:
+        - $ref: '#/components/parameters/sid'
+      responses:
+        '200':
+          description: Successfully return.
+        '501':
+          $ref: '#/components/responses/ErrorNotImplemented'
+        default:
+          $ref: '#/components/responses/ErrorDefault'
+  /rules/define:
+    post:
+      summary: Add definitions of persistent rules.
+      description: Definition of persistent rules of the session without lots of output.
+      operationId: PostRulesDefine
+      parameters:
+        - $ref: '#/components/parameters/sid'
+        - $ref: '#/components/parameters/nlp'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/rulefmt_Semalogic'
+      responses:
+        '200':
+          description: Successfully return.
+        '501':
+          $ref: '#/components/responses/ErrorNotImplemented'
+        default:
+          $ref: '#/components/responses/ErrorDefault'
+  /rules/remove:        
+    post:
+      summary: Removes terms from the persistently defined ruleset.
+      description: Removes terms from the persistently defined ruleset of the session.
+      operationId: PostRulesRemove
+      parameters:
+        - $ref: '#/components/parameters/sid'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/textID'    
+      responses:
+        '200':
+          description: Successfully deleted.
+        '501':
+          $ref: '#/components/responses/ErrorNotImplemented'
+        default:
+          $ref: '#/components/responses/ErrorDefault'
+  /rules/parse:
+    post:
+      summary: Converts any text with a given dialect into Semantic representation
+      description: |-
+        Converts any text with a given dialect into Semantic representation of
+        the session. The rules are either persistently stored, thus the ruleset
+        is extended. Or the rules are only temporarily stored for this call.
+        The provided output can be selected by setting a filter. Otherwise all
+        defined rules are shown in the output.
+        The output format is defined by the rulesettype. Currently only ASP.json 
+        SemaLogic, SVG and TextTree are supported.
+      operationId: PostRulesParse
+      parameters:
+        - $ref: '#/components/parameters/sid'
+        - $ref: '#/components/parameters/nlp'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/parsedata'
+      responses:
+        '200':
+          description: Successfully return.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/rulesout'
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/rulesout'
+        '406':
+          $ref: '#/components/responses/ErrorStatusNotAcceptable'
+        '422':
+          $ref: '#/components/responses/ErrorStatusUnprocessableEntity'
+        '204':
+          $ref: '#/components/responses/ErrorStatusNoContent'
+        default:
+          $ref: '#/components/responses/ErrorDefault'
+  /rules/show:
+    post:
+      summary: Export ruleset-trees.
+      description: Export ruleset-trees for the session. The tree can be selected 
+        using the filters. Otehrwise, all trees will be shown. The output format 
+        is selected using rulesettype.
+      operationId: PostRulesShow
+      parameters:
+        - $ref: '#/components/parameters/sid'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rulesettype:
+                  $ref: '#/components/schemas/rulesettype'
+                filter:
+                  $ref: '#/components/schemas/filter'
+      responses:
+        '200':
+          description: Successfully return.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/rulesettype'
+                  - $ref: '#/components/schemas/rulefmt_Semalogic'
+        '501':
+          $ref: '#/components/responses/ErrorNotImplemented'
+        default:
+          $ref: '#/components/responses/ErrorDefault'
+  /canvas/convert:
+    post:
+      summary: Convert an Obsidian Canvas JSON into a SemaLogic term.
+      description: |-
+        Accepts an Obsidian Canvas JSON document and returns the SemaLogic term
+        defined by the canvas content.
+      operationId: PostCanvas2SL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/canvasRawJSON'
+          text/plain:
+            schema:
+              $ref: '#/components/schemas/canvasRawJSON'
+      responses:
+        '200':
+          description: Successfully converted.
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/semalogicTermString'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/semalogicTermString'
+        '501':
+          $ref: '#/components/responses/ErrorNotImplemented'
+        default:
+          $ref: '#/components/responses/ErrorDefault'
+  /dialect/define:
+    post:
+      summary: Define or change a dialect.
+      description: Define or change a dialect within this session. The dialectID 
+        can either be set as a JSON parameter or be included in the dialectDef 
+        using the SemaLogic notation.
+      operationId: PostDialectDefine
+      parameters:
+        - $ref: '#/components/parameters/sid'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/dialect'
+      responses:
+        '200':
+          description: Successfully persisted.
+        '501':
+          $ref: '#/components/responses/ErrorNotImplemented'
+        default:
+          $ref: '#/components/responses/ErrorDefault'
+  /dialect/remove:
+    post:
+      summary: Delete dialects by dialectID.
+      description: Delete a dialect from this session. Previously defined tokens 
+        can not be deleted from a dialect.
+      operationId: PostDialectRemove
+      parameters:
+        - $ref: '#/components/parameters/sid'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/dialectID'
+            example: end-with-dot
+      responses:
+        default:
+          description: Error.
+  /dialect/show:
+    post:
+      summary: Show dialects by dialectID.
+      description: Show a dialect from this session. 
+      operationId: PostDialectShow
+      parameters:
+        - $ref: '#/components/parameters/sid'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/dialectID'
+            example: end-with-dot
+      responses:
+        default:
+          description: Error.
+
+  /reset:
+    post:
+      summary: Resets the session.
+      description: Resets the session and deletes all rules. The defined dialects 
+        are not deleted.
+      operationId: PostReset
+      parameters:
+        - $ref: '#/components/parameters/sid'
+      responses:
+        '200':
+          description: Successfully reseted.
+        default:
+          description: Default error sample response
+    
+components:
+
+  parameters:
+
+    sid:
+      name: sid
+      in: query
+      description: Session identifier (sid) is unique to any (persistent) session. The session might be shared by multiple users, if joint data is required.
+      required: false
+      explode: true
+      style: form
+      schema:
+        type: string
+        default: default
+    nlp:
+      name: NLP
+      in: query
+      description: |-
+        Optional NLP toggle for text-based inputs (UTF-8). Accepted values are
+        true/false or 1/0. NLP is activated only when the value is true or 1.
+        Any other value or a missing parameter disables NLP. Not applicable to
+        Canvas or Dialect endpoints.
+      required: false
+      explode: true
+      style: form
+      schema:
+        type: string
+        enum:
+          - "true"
+          - "false"
+          - "1"
+          - "0"
+      example: "true"
+          
+  schemas:  
+
+    persistency:
+      type: boolean
+      description: Save the rules persistently in this SemaLogic Server.
+            
+    rulesettype:
+      type: string
+      description: Define type and format of ruleset - for input and output.
+      enum:
+        - ASP.json
+        - Canvas2SL
+        - KnowledgeGraph
+        - SemaLogic
+        - SemanticTree
+        - SVG
+      x-enumDescriptions:
+        ASP.json: Generate a special json-file for UP-ASP
+        Canvas2SL: Convert an Obsidian Canvas JSON input into a SemaLogic term
+        KnowledgeGraph: Outputs a Obsidian canvas displaying the nodes
+        SemaLogic: Read SemaLogic input and also generate standard language SemaLogic output
+        SemanticTree: ASCII based text displaying the coded semantic tree
+        SVG: Generate a Scalable Vector Graphics (SVG)
+      example: ASP.json
+
+    version:
+      properties:
+        version:
+          type: string
+          description: Number of interface version.
+          example: "00.01.18 build 240122-0937"
+        runtime:
+          type: string
+          description: Time the service was started last.
+          example: "started: Monday, 17-Jul-23 18:20:15 UTC"
+        versiontext:
+          type: string
+          description: Informations about interface version.
+          example: "This is current the SemaLogic service interface to provide transformation services."
+      required:
+        - version
+
+    filter:
+      type: object
+      description: |- 
+        We select the semantic level of the output using the filter.
+        The semantic tree is selected by an arbitrary symbolic name, which was defined in the ruleset.
+        If no specific symbol is given, the complete tree is shown.
+        The output is presented in the given dialect or default dialect, if none is given.
+      properties:
+        dialectID:
+          $ref: '#/components/schemas/dialectID'    
+        symbols:
+          $ref: '#/components/schemas/symbolList'
+      example:
+        dialectID: default
+        symbols: [{symbol: "A"}]
+  
+    dialectID:
+      type: string
+      description: DialectID (= name of this dialect) of a dialect.
+      example: sampleDialectID32
+
+    dialect:
+      type: object
+      description: One dialectID and at least on symbolic token definitions of a dialect.
+      properties:
+        dialectID:
+          $ref: '#/components/schemas/dialectID'
+        dialectDef:
+          type: string
+          description: One or multiple token definitions which form part of a dialect.
+          example: SymTokenAndClose:=.
+      example:
+        dialectID: end-with-dot
+        dialectDef: "SymTokenAndClose::=.\nSymTokenOrClose::=.\n"
+
+    symbol:
+      type: string
+      description: Name of a symbol.
+      example: modulebm1
+    
+    datatype:
+      type: string
+      description: Defines the datatype of the following value.
+      example: integer
+      enum:
+        - string
+        - integer
+        - number
+        - bool
+      x-enumDescriptions:
+        string: value will be a string
+        integer: value will be a integer
+        number: value will be a floating point number
+        bool: value will be a boolean value of true or false.
+
+    value:
+      description: Used to code one flexible type value.
+      oneOf:
+      - type: boolean
+      - type: string
+      - type: number
+      - type: integer
+      example: 6    
+
+    range:
+      type: array
+      description: Used to group multiple values into an array.
+      items:
+        properties:
+          value:
+            $ref: '#/components/schemas/value'
+
+    property:
+      description: Used as param or property description for Attribut and Term.
+      properties:
+        name: 
+          type: string
+          example: ects
+        datatype:  
+          $ref: '#/components/schemas/datatype'
+        value:
+          oneOf:
+          - $ref: '#/components/schemas/value'
+          - $ref: '#/components/schemas/range'
+        
+    attribute:
+      type: array
+      description: |
+        An array of symbol definitions, where
+        - `symbol`: holds the symbol/object to which a definition applies
+        - `property`: is an arry of attribute definitions of attribute_names and their values of type integer, number, string or bool using the datatype.
+      items:
+        properties:
+          symbol:
+            $ref: '#/components/schemas/symbol'
+          property: 
+            type: array
+            items:
+              $ref: '#/components/schemas/property'
+
+    symbolList:
+      type: array
+      description: A list of Symbols which can be used as members of a group or as list of symbols in a filter.
+      items:
+        properties:
+          symbol:
+            $ref: '#/components/schemas/symbol'
+
+    group:
+      type: array
+      description: Grouping symbols by a (group)symbol
+        members could be symbols and other group-symbols.
+      items:
+        properties:
+          symbol:
+            $ref: '#/components/schemas/symbol'
+          member:
+            $ref: '#/components/schemas/symbolList'
+    
+    term:
+      type: array
+      description: |
+        An array of terms, where 
+        - `symbol`: holds the symbol/object on which a constrain is applied. 
+        - `termtype`: holds the type of the term.
+        - `params`: is structure to define the special parameters for each function - reuse of attribute structure above (in attributes->attribute). 
+        All parameters have to be defined for every function.
+        Definition of term types and there params are not defined in API-Structure, because the structure is the same - only the values and the count of attributes change:
+
+        termtype = iterator
+        using params names of:
+        - `operator`: one of ("sum" for summation, "min" for minimum, "max" for maximum, "average" for average value, "count" for counting the number of elements)
+        - `symbol_name`: holds the group name (alias symbol), we iterate over.
+        - `attribute_name`: holds the attribute name, we use for calculations.
+        - `argument`: additional arguments.
+
+        termtype = and
+        using no params
+
+        termtype = or
+        using params names of:
+        - `minimum`: holds the minimum number of elements which can be picked from the set.
+        - `maximum`: holds the maximum number of elements which can be picked from the set.
+
+        termtype = comparison
+        using params names of:
+        - `operator`: one of: ("eq" equal to, "gt" greater than, "lt" less than, "ge" greater than or equal to, "le" less than or equal to, "ne" not equal to )
+        - `left_operant`: holds the left hand operant of the comparison.
+        - `right_operant`: holds the right hand operant of the comparison.
+
+        termtype = check
+        using params names of:
+        - `symbol_name`: holds the group name (alias symbol), we check for being true.
+
+        termtype = advice
+        using params names of:
+        - `symbol_name`: holds the group name (alias symbol), we aim for being true. However, this is no hard constraint.
+
+        termtype = timeorder
+        using params names of:
+        - `operator`: one of ("before", "after", "parallel_and_before", "parallel_and_after")
+        - `left_operant`: holds the left hand operant of the comparison.
+        - `right_operant`: holds the right hand operant of the comparison.
+
+        Currently undefined: advices.
+      items:
+        properties:
+          symbol:
+            $ref: '#/components/schemas/symbol'
+          termtype:
+            type: string
+            description: Holds the type of the term.
+            example: 'and'
+          params: 
+            type: array
+            items:
+              $ref: '#/components/schemas/property'
+
+    textID:
+      type: string
+      description: TextID for a transmitted text. It can be used to 
+        delete specific text passages and keep the rest of the ruleset.
+      example: sampleTextID22
+
+    rulefmt_ASP.JSON:
+      type: array
+      description: Ruleset for ASP in JSON-Format for solving.
+      items:
+        properties:
+          attribute:
+            $ref: '#/components/schemas/attribute'
+          group:
+            $ref: '#/components/schemas/group'
+          term:
+            $ref: '#/components/schemas/term'
+
+    rulefmt_Semalogic:
+      type: array
+      description: A SemaLogic based definition of rules in a specific dialect.
+      items:
+        type: object
+        properties:
+          textID:
+            $ref: '#/components/schemas/textID'    
+          dialectID:
+            $ref: '#/components/schemas/dialectID'    
+          rules:
+            type: string
+            example: "My Options 1|2 {do nothing, start now, start later, ask for help}"
+        example:
+          textID: sampleTextID21
+          dialectID: default
+          rules: A [B, C]
+
+    rulefmt_TextTree:
+      type: string
+      description: A ASCII based output format containing a text representation of one or several semantic trees.
+        It always uses the default dialect, thus is displayed in using standard technical SemaLogic language. 
+      example:
+        A [B, C]
+          C 1|2 {D, E, F}
+
+    rulesout:
+      type: object
+      description: Type based wrapper for rulesets in various formats.
+      properties:
+        errors: 
+          $ref: '#/components/schemas/errorlist'
+        rulesettype:
+          $ref: '#/components/schemas/rulesettype'
+        rules: 
+          description: Depending on the rulesettype, we code different formats.
+          oneOf:
+          - $ref: '#/components/schemas/rulefmt_ASP.JSON'
+          - $ref: '#/components/schemas/rulefmt_Semalogic'
+          - $ref: '#/components/schemas/rulefmt_TextTree'
+        
+    parsedata:
+      type: object
+      description: Format to transmit a new ruleset to the SemaLogic service.
+      properties:
+        text:
+          $ref: '#/components/schemas/rulefmt_Semalogic'
+        filter:
+          $ref: '#/components/schemas/filter'
+        persistency:
+          $ref: '#/components/schemas/persistency'
+        rulesettype:
+          $ref: '#/components/schemas/rulesettype'
+
+    errorlist:
+      type: array
+      description: Error reporting from the normal parsing level.
+      items:
+        properties:
+           errortext:
+             type: string
+             description: Text of the error or warning message.
+           reference:
+             type: string
+             description: A reference description to the source of the error.
+
+    canvasRawJSON:
+      type: string
+      description: Raw Obsidian Canvas JSON document as a string.
+      example: '{"nodes":[],"edges":[]}'
+
+    semalogicTermString:
+      type: string
+      description: SemaLogic term encoded as a string.
+      example: "A [B, C]"
+
+  responses:
+    ErrorNotImplemented:
+      description: Bad request - error.
+      content:
+        application/json:
+          schema:
+            properties:
+              errortext:
+                type: string
+            required:
+              - Text
+    ErrorStatusUnprocessableEntity:
+      description: Syntax error in content format - error.
+      content:
+        application/json:
+          schema:
+            properties:
+              errortext:
+                type: string
+            required:
+              - Text
+    ErrorStatusNoContent:
+      description: No content was provided - error.
+      content:
+        application/json:
+          schema:
+            properties:
+              errortext:
+                type: string
+            required:
+              - Text
+    ErrorStatusNotAcceptable:
+      description: Bad format of body - error.
+      content:
+        application/json:
+          schema:
+            properties:
+              errortext:
+                type: string
+            required:
+              - Text
+    ErrorDefault:
+      description: Unspecific (default) error.
+      content:
+        application/json:
+          schema:
+            properties:
+              errortext:
+                type: string
+            required:
+              - Text
